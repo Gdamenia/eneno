@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Play to Remove Stress 🌸</title>
+
+
+  <link rel="stylesheet" href="ene.css">
+
+ 
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check-compat.js"></script>
+
+  <script src="ene.js" defer></script>
+</head>
+
+<body>
+  <!-- AUTH OVERLAY (blocks app until login) -->
+  <div class="modalOverlay" id="authOverlay" style="display:flex;">
+    <div class="authBox" role="dialog" aria-modal="true">
+      <div class="authTop">
+        <div>
+          <div class="authTitle">Login / Register 🔐</div>
+          <div class="muted authSub">registraciashi simboloebi da space ebi ar gamoikeno</div>
+        </div>
+      </div>
+
+      <div class="authTabs">
+        <button id="tabLogin" class="btn btnPrimary" type="button">Login</button>
+        <button id="tabRegister" class="btn" type="button">Register</button>
+      </div>
+
+      <div class="authForm">
+        <label class="authLabel">Username (no spaces)</label>
+        <input id="authUsername" class="authInput" type="text" placeholder="enenooo" autocomplete="username"/>
+
+        <label class="authLabel">Password</label>
+        <input id="authPassword" class="authInput" type="password" placeholder="••••••••" autocomplete="current-password"/>
+
+        <div id="confirmWrap" style="display:none;">
+          <label class="authLabel">Re-enter password</label>
+          <input id="authPassword2" class="authInput" type="password" placeholder="••••••••" autocomplete="new-password"/>
+        </div>
+
+        <button id="authSubmit" class="btn btnGood" type="button">Login</button>
+        <div class="tiny" id="authMsg" style="margin-top:10px;"></div>
+      </div>
+
+      <div class="tiny" style="margin-top:10px;">
+        mikvarxar
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap" id="appWrap" style="display:none;">
+    <header class="header">
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div class="brandText">
+          <h1>Enenos tamashi 🌸</h1>
+          <p class="sub">Sheagrove pionebi da gaxseni dgiuri</p>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="btnStart" class="btn btnGood" type="button">daviwkot / restarti</button>
+        <button id="btnLogout" class="btn" type="button">Logout</button>
+      </div>
+    </header>
+
+    <!-- GAME -->
+    <section class="card section" id="gameSection">
+      <div class="sectionTop">
+        <div>
+          <h2 class="h2">Rogor vitamashot</h2>
+          <p class="muted">
+            WASD / Arrow keys. Telefonze: gaasriale. Sheagrove <b>12 pioni 🌸</b>. Max 4 stress hits.
+          </p>
+        </div>
+
+        <button id="btnScrollDiary" class="btn btnPrimary" type="button" disabled>
+          Go to Diary ↓
+        </button>
+      </div>
+
+      <div class="hud">
+        <div class="stat">pionebi: <span id="score">0</span> / 12</div>
+        <div class="stat">Dro: <span id="time">60</span>s</div>
+        <div class="stat">Stress hitebi: <span id="hits">0</span> / 4</div>
+      </div>
+
+      <div class="bar" aria-label="calm meter">
+        <div id="calmFill" class="barFill"></div>
+      </div>
+
+      <div class="canvasWrap">
+        <canvas id="c" width="980" height="420"></canvas>
+      </div>
+
+      <div class="tipRow">
+        <div class="tiny">mikvarxar</div>
+        <div class="tiny" id="statusText">Press Start to play 🌸</div>
+      </div>
+    </section>
+
+    <!-- DIARY -->
+    <section class="card section locked" id="diarySection">
+      <div class="sectionTop">
+        <div>
+          <h2 class="h2">Enenos dgiuri</h2>
+          <p class="muted">chawere rame shechema</p>
+          <span class="pill" id="unlockPill">Locked 🔒 (moige tamashi ro gaxsna)</span>
+        </div>
+      </div>
+
+      <div class="diaryGrid" id="diaryContent">
+        <div class="diaryLeft">
+          <div class="diaryControls">
+            <input id="datePick" type="date" aria-label="Pick a date"/>
+            <button id="btnSave" class="btn btnPrimary" type="button">Save</button>
+            <button id="btnClear" class="btn" type="button">Delete Day</button>
+          </div>
+
+          <textarea id="note" placeholder="Today I felt…"></textarea>
+          <div class="tiny">Autosaves while typing.</div>
+        </div>
+
+        <div class="diaryRight">
+          <span class="pill">Shenaxuli dgeebi</span>
+          <div class="list" id="list"></div>
+        </div>
+      </div>
+
+      <!-- LOCK OVERLAY -->
+      <div class="lockedOverlay" id="lockedOverlay" aria-hidden="false">
+        <div class="lockedBox">
+          <div class="lockedTitle">chaketilia eneno 🔒</div>
+          <div class="muted lockedText">
+            Sheagrove <b>12 Pioni 🌸</b> rom gaxsna dgiuri.
+            <br/>aba shen ici
+          </div>
+          <div class="lockedBtns">
+            <button class="btn btnGood" id="btnBackToGame" type="button">kaixo vitamasheb</button>
+            <button class="btn" id="btnUnlockAnyway" type="button">o moica ra, chamawerine erti</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <noscript style="color:white;padding:20px;display:block"></noscript>
+</body>
+</html>
