@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Calorie & Macro Planner</title>
+
+  <link rel="stylesheet" href="/ene.css"/>
+
+  <style>
+    .row{ display:flex; gap:12px; flex-wrap:wrap; }
+    .col{ flex:1 1 260px; min-width: 240px; }
+    .input{
+      width:100%;
+      margin-top:6px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      outline: none;
+      font-weight: 850;
+    }
+    .label{
+      display:block;
+      margin-top:10px;
+      font-size:12px;
+      color: var(--muted);
+      font-weight: 800;
+    }
+    a.btn{ text-decoration:none; }
+
+    /* ✅ NEW: exceeded visuals */
+    .overText{ color:#ff4d6d !important; font-weight: 950; }
+    .barFill.overFill{ background:#ff4d6d !important; }
+
+    /* Typeahead */
+    .suggestBox{ position: relative; margin-top: 8px; }
+    .suggestList{
+      position:absolute;
+      left:0; right:0;
+      top: calc(100% + 6px);
+      background: rgba(12,12,18,.96);
+      border:1px solid rgba(255,255,255,.14);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      max-height: 260px;
+      overflow:auto;
+      display:none;
+      z-index: 50;
+    }
+    .suggestItem{
+      padding: 10px 12px;
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .suggestItem:hover{ background: rgba(255,255,255,.06); }
+    .miniTag{
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 800;
+      white-space:nowrap;
+    }
+
+    /* Modals */
+    .modalX{
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.62);
+      backdrop-filter: blur(7px);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 16px;
+      z-index: 9999;
+    }
+    .modalBoxX{
+      width: min(760px, 100%);
+      max-height: 85vh;
+      overflow: auto;
+      background: rgba(12,12,18,.92);
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+    .modalTopX{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom: 10px;
+    }
+    .modalTitleX{ font-weight: 950; font-size: 16px; }
+    .modalBtnsX{
+      margin-top: 10px;
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+
+    /* Meal modal body */
+    .mealBody{
+      white-space: pre-wrap;
+      line-height: 1.6;
+      font-size: 13px;
+      color: var(--text);
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .modalBodyX{
+      white-space: normal;
+      line-height: 1.6;
+      font-size: 13px;
+      color: var(--text);
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .logCard{ display:flex; flex-direction:column; }
+    .logList{
+      max-height: 320px;
+      overflow:auto;
+      padding-right: 4px;
+      margin-top: 10px;
+    }
+    .savedMealsList{
+      max-height: 320px;
+      overflow:auto;
+      padding-right: 4px;
+      margin-top: 10px;
+    }
+    @media (max-width: 520px){
+      .logList, .savedMealsList{ max-height: 260px; }
+    }
+  </style>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <script src="/calorie-calculator/page.js" defer></script>
+</head>
+
+<body>
+  <div class="wrap" id="plannerWrap" style="display:none;">
+    <header class="header">
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div class="brandText">
+          <h1>Calorie & Macro Planner 🍽️</h1>
+          <p class="sub">Targets + log foods + generate 1 meal.</p>
+        </div>
+      </div>
+
+      <div class="actions">
+        <a class="btn" href="/">Home</a>
+        <a class="btn" href="/gods-words/">God’s Words</a>
+        <span class="btn btnPrimary" style="cursor:default;">Calorie Planner</span>
+        <button id="btnLogout" class="btn" type="button">Logout</button>
+      </div>
+    </header>
+
+    <!-- TARGETS -->
+    <section class="card section">
+      <div class="sectionTop">
+        <div>
+          <h2 class="h2">Targets</h2>
+          <p class="muted">Targets stay until she changes them. Log resets only with Reset.</p>
+        </div>
+        <div class="tiny" id="msg"></div>
+      </div>
+
+      <div class="row">
+        <div class="col">
+          <label class="label">Calories (kcal)</label>
+          <input id="tCals" class="input" type="number" min="0" step="1"/>
+        </div>
+        <div class="col">
+          <label class="label">Protein (g)</label>
+          <input id="tP" class="input" type="number" min="0" step="1"/>
+        </div>
+        <div class="col">
+          <label class="label">Carbs (g)</label>
+          <input id="tC" class="input" type="number" min="0" step="1"/>
+        </div>
+        <div class="col">
+          <label class="label">Fat (g)</label>
+          <input id="tF" class="input" type="number" min="0" step="1"/>
+        </div>
+      </div>
+
+      <div class="hud" style="margin-top:12px;">
+        <button id="btnSaveTargets" class="btn btnPrimary" type="button">Save targets</button>
+        <button id="btnResetDay" class="btn" type="button">Reset (clear log)</button>
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+        <div class="col card" style="padding:12px;">
+          <div style="font-weight:900; margin-bottom:6px;">Calories</div>
+          <div class="tiny" id="calsText">0 used • 0 left</div>
+          <div class="bar"><div id="calsFill" class="barFill"></div></div>
+        </div>
+
+        <div class="col card" style="padding:12px;">
+          <div style="font-weight:900; margin-bottom:6px;">Protein</div>
+          <div class="tiny" id="pText">0 used • 0 left</div>
+          <div class="bar"><div id="pFill" class="barFill"></div></div>
+        </div>
+
+        <div class="col card" style="padding:12px;">
+          <div style="font-weight:900; margin-bottom:6px;">Carbs</div>
+          <div class="tiny" id="cText">0 used • 0 left</div>
+          <div class="bar"><div id="cFill" class="barFill"></div></div>
+        </div>
+
+        <div class="col card" style="padding:12px;">
+          <div style="font-weight:900; margin-bottom:6px;">Fat</div>
+          <div class="tiny" id="fText">0 used • 0 left</div>
+          <div class="bar"><div id="fFill" class="barFill"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- LOG FOODS -->
+    <section class="card section logCard">
+      <div class="sectionTop">
+        <div>
+          <h2 class="h2">Log foods</h2>
+          <p class="muted">Type → pick → grams → Add. Or add manually.</p>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col">
+          <label class="label">Food</label>
+          <div class="suggestBox">
+            <input id="foodInput" class="input" type="text" placeholder="Start typing: rice, shrimp, salmon..."/>
+            <div id="suggest" class="suggestList"></div>
+          </div>
+          <div class="tiny" style="margin-top:8px;">
+            Selected: <span id="picked" style="font-weight:900;">None</span>
+          </div>
+        </div>
+
+        <div class="col">
+          <label class="label">Grams</label>
+          <input id="grams" class="input" type="number" min="1" step="1" value="100"/>
+
+          <div class="hud" style="margin-top:12px;">
+            <button id="btnAdd" class="btn btnPrimary" type="button" disabled>Add food</button>
+            <button id="btnClearPick" class="btn" type="button">Clear pick</button>
+            <button id="btnManual" class="btn btnGood" type="button">Add manually</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:10px;">
+        <span class="pill">Current log</span>
+        <div class="list logList" id="log"></div>
+      </div>
+    </section>
+
+    <!-- MEAL GENERATOR (LAST) -->
+    <section class="card section">
+      <div class="sectionTop">
+        <div>
+          <h2 class="h2">Generate 1 meal</h2>
+          <p class="muted">Breakfast/Lunch/Dinner → generate → save forever.</p>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col">
+          <label class="label">Meal type</label>
+          <select id="mealType" class="input">
+            <option value="breakfast">Breakfast</option>
+            <option value="lunch">Lunch</option>
+            <option value="dinner">Dinner</option>
+          </select>
+        </div>
+        <div class="col" style="display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap;">
+          <button id="btnGenerateMeal" class="btn btnGood" type="button">Generate meal</button>
+        </div>
+      </div>
+
+      <div style="margin-top:10px;">
+        <span class="pill">Saved meals</span>
+        <div class="list savedMealsList" id="savedMeals"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Meal Modal -->
+  <div class="modalX" id="mealModal">
+    <div class="modalBoxX" role="dialog" aria-modal="true">
+      <div class="modalTopX">
+        <div class="modalTitleX" id="mealTitle">Meal</div>
+        <button class="btn" id="mealClose" type="button">Close</button>
+      </div>
+      <div class="mealBody" id="mealBody"></div>
+      <div class="modalBtnsX">
+        <button class="btn" id="mealAgain" type="button">Try again</button>
+        <button class="btn btnPrimary" id="mealSave" type="button">Save meal</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Manual Add Modal -->
+  <div class="modalX" id="manualModal">
+    <div class="modalBoxX" role="dialog" aria-modal="true">
+      <div class="modalTopX">
+        <div class="modalTitleX">Add manually</div>
+        <button class="btn" id="manualClose" type="button">Close</button>
+      </div>
+
+      <div class="modalBodyX">
+        <div class="row">
+          <div class="col">
+            <label class="label">Name</label>
+            <input id="mName" class="input" type="text" placeholder="Big Mac, pizza slice, etc."/>
+          </div>
+          <div class="col">
+            <label class="label">Grams (optional)</label>
+            <input id="mGrams" class="input" type="number" min="0" step="1" placeholder="leave empty if unknown"/>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col">
+            <label class="label">Calories (kcal)</label>
+            <input id="mCals" class="input" type="number" min="0" step="1"/>
+          </div>
+          <div class="col">
+            <label class="label">Protein (g)</label>
+            <input id="mP" class="input" type="number" min="0" step="0.1"/>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col">
+            <label class="label">Carbs (g)</label>
+            <input id="mC" class="input" type="number" min="0" step="0.1"/>
+          </div>
+          <div class="col">
+            <label class="label">Fat (g)</label>
+            <input id="mF" class="input" type="number" min="0" step="0.1"/>
+          </div>
+        </div>
+
+        <div class="tiny" style="margin-top:8px;">
+          Tip: use nutrition label numbers (most accurate).
+        </div>
+
+        <div class="modalBtnsX">
+          <button class="btn btnPrimary" id="manualAdd" type="button">Add to log</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <noscript style="color:white;padding:20px;display:block">Enable JavaScript.</noscript>
+</body>
+</html>
