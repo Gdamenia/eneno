@@ -606,131 +606,48 @@
   // ✅ FIX: BIG meal variety + Try Again really different
   const TEMPLATES = {
     breakfast: [
-      { title: "Greek yogurt + berries + granola", items: [
-        { q: "greek yogurt", grams: 150 },
-        { q: "granola", grams: 30 },
-        { q: "blueberries", grams: 80 }
-      ]},
-      { title: "Greek yogurt + banana + honey", items: [
-        { q: "greek yogurt", grams: 150 },
-        { q: "banana raw", grams: 120 },
-        { q: "honey", grams: 8 }
-      ]},
-      { title: "Oatmeal bowl (simple)", items: [
-        { q: "oats", grams: 50 },
-        { q: "banana raw", grams: 90 },
-        { q: "strawberries", grams: 80 }
-      ]},
-      { title: "Eggs + toast + cucumber", items: [
-        { q: "egg", grams: 100 },
-        { q: "whole wheat bread", grams: 60 },
-        { q: "cucumber", grams: 140 }
-      ]},
-      { title: "Eggs + potatoes (light)", items: [
-        { q: "egg", grams: 100 },
-        { q: "potato baked", grams: 200 },
-        { q: "tomato", grams: 120 }
-      ]},
-      { title: "Cottage cheese + fruit", items: [
-        { q: "cottage cheese", grams: 200 },
-        { q: "apple raw", grams: 160 }
-      ]},
-      { title: "Avocado toast + egg", items: [
-        { q: "whole wheat bread", grams: 60 },
-        { q: "avocado raw", grams: 70 },
-        { q: "egg", grams: 50 }
-      ]},
-      { title: "Rice cakes + yogurt + berries", items: [
-        { q: "rice cake", grams: 20 },
-        { q: "greek yogurt", grams: 150 },
-        { q: "strawberries", grams: 100 }
-      ]},
+      { title: "Greek yogurt + granola + blueberries", items:[{q:"greek yogurt",grams:150},{q:"granola",grams:30},{q:"blueberries",grams:80}]},
+      { title: "Greek yogurt + granola + strawberries", items:[{q:"greek yogurt",grams:150},{q:"granola",grams:30},{q:"strawberries",grams:100}]},
+      { title: "Greek yogurt + banana + honey", items:[{q:"greek yogurt",grams:150},{q:"banana raw",grams:120},{q:"honey",grams:8}]},
+      { title: "Greek yogurt + apple + granola", items:[{q:"greek yogurt",grams:150},{q:"apple raw",grams:160},{q:"granola",grams:25}]},
+      { title: "Oatmeal + banana + berries", items:[{q:"oats",grams:50},{q:"banana raw",grams:100},{q:"blueberries",grams:60}]},
+      { title: "Oatmeal + strawberries", items:[{q:"oats",grams:50},{q:"strawberries",grams:120}]},
+      { title: "Eggs + toast + cucumber", items:[{q:"egg",grams:100},{q:"whole wheat bread",grams:60},{q:"cucumber",grams:140}]},
+      { title: "Eggs + potatoes + tomato", items:[{q:"egg",grams:100},{q:"potato baked",grams:200},{q:"tomato",grams:120}]},
+      { title: "Cottage cheese + apple", items:[{q:"cottage cheese",grams:200},{q:"apple raw",grams:160}]},
+      { title: "Cottage cheese + berries", items:[{q:"cottage cheese",grams:200},{q:"blueberries",grams:90}]},
+      { title: "Rice cakes + yogurt + berries", items:[{q:"rice cake",grams:20},{q:"greek yogurt",grams:150},{q:"strawberries",grams:100}]},
+      { title: "Banana + yogurt (simple)", items:[{q:"banana raw",grams:120},{q:"greek yogurt",grams:150}]},
     ],
 
     lunch: [
-      { title: "Chicken + rice + salad", items: [
-        { q: "chicken breast cooked", grams: 150 },
-        { q: "white rice cooked", grams: 180 },
-        { q: "tomato", grams: 120 }
-      ]},
-      { title: "Salmon + potatoes + broccoli", items: [
-        { q: "salmon cooked", grams: 140 },
-        { q: "potato baked", grams: 220 },
-        { q: "broccoli cooked", grams: 120 }
-      ]},
-      { title: "Tuna bowl (simple)", items: [
-        { q: "tuna canned in water", grams: 140 },
-        { q: "white rice cooked", grams: 160 },
-        { q: "cucumber", grams: 150 }
-      ]},
-      { title: "Chicken + pasta + veg", items: [
-        { q: "chicken breast cooked", grams: 140 },
-        { q: "pasta cooked", grams: 180 },
-        { q: "mixed vegetables cooked", grams: 180 }
-      ]},
-      { title: "Beef + rice + tomato", items: [
-        { q: "beef cooked", grams: 140 },
-        { q: "white rice cooked", grams: 160 },
-        { q: "tomato", grams: 140 }
-      ]},
-      { title: "Turkey sandwich + salad", items: [
-        { q: "whole wheat bread", grams: 90 },
-        { q: "turkey breast deli", grams: 90 },
-        { q: "tomato", grams: 100 }
-      ]},
-      { title: "Shrimp + rice + vegetables", items: [
-        { q: "shrimp cooked", grams: 160 },
-        { q: "white rice cooked", grams: 170 },
-        { q: "mixed vegetables cooked", grams: 180 }
-      ]},
-      { title: "Eggs + rice + cucumber", items: [
-        { q: "egg", grams: 150 },
-        { q: "white rice cooked", grams: 170 },
-        { q: "cucumber", grams: 150 }
-      ]},
+      { title: "Chicken breast + rice + cucumber", items:[{q:"chicken breast cooked",grams:160},{q:"white rice cooked",grams:180},{q:"cucumber",grams:150}]},
+      { title: "Chicken breast + rice + tomato", items:[{q:"chicken breast cooked",grams:160},{q:"white rice cooked",grams:180},{q:"tomato",grams:150}]},
+      { title: "Chicken breast + potatoes + salad", items:[{q:"chicken breast cooked",grams:170},{q:"potato baked",grams:240},{q:"cucumber",grams:150}]},
+      { title: "Salmon + potatoes + broccoli", items:[{q:"salmon cooked",grams:140},{q:"potato baked",grams:220},{q:"broccoli cooked",grams:140}]},
+      { title: "Salmon + rice + cucumber", items:[{q:"salmon cooked",grams:140},{q:"white rice cooked",grams:170},{q:"cucumber",grams:150}]},
+      { title: "Tuna + rice + cucumber", items:[{q:"tuna canned in water",grams:140},{q:"white rice cooked",grams:170},{q:"cucumber",grams:150}]},
+      { title: "Tuna + potatoes + tomato", items:[{q:"tuna canned in water",grams:140},{q:"potato baked",grams:220},{q:"tomato",grams:140}]},
+      { title: "Shrimp + rice + veggies", items:[{q:"shrimp cooked",grams:160},{q:"white rice cooked",grams:170},{q:"mixed vegetables cooked",grams:180}]},
+      { title: "Beef + rice + tomato", items:[{q:"beef cooked",grams:150},{q:"white rice cooked",grams:170},{q:"tomato",grams:140}]},
+      { title: "Eggs + rice + cucumber", items:[{q:"egg",grams:150},{q:"white rice cooked",grams:170},{q:"cucumber",grams:150}]},
+      { title: "Chicken + pasta + veggies", items:[{q:"chicken breast cooked",grams:150},{q:"pasta cooked",grams:180},{q:"mixed vegetables cooked",grams:180}]},
+      { title: "Salmon + quinoa + veggies", items:[{q:"salmon cooked",grams:140},{q:"quinoa cooked",grams:180},{q:"mixed vegetables cooked",grams:180}]},
     ],
 
-    dinner: [
-      { title: "Shrimp + noodles (light)", items: [
-        { q: "shrimp cooked", grams: 160 },
-        { q: "rice noodles cooked", grams: 200 },
-        { q: "mixed vegetables cooked", grams: 200 }
-      ]},
-      { title: "Chicken bowl (simple)", items: [
-        { q: "chicken breast cooked", grams: 160 },
-        { q: "potato baked", grams: 200 },
-        { q: "cucumber", grams: 150 }
-      ]},
-      { title: "Salmon + rice + cucumber", items: [
-        { q: "salmon cooked", grams: 130 },
-        { q: "white rice cooked", grams: 170 },
-        { q: "cucumber", grams: 160 }
-      ]},
-      { title: "Ground beef + potatoes", items: [
-        { q: "ground beef cooked", grams: 140 },
-        { q: "potato baked", grams: 220 },
-        { q: "tomato", grams: 120 }
-      ]},
-      { title: "Chicken + quinoa + veg", items: [
-        { q: "chicken breast cooked", grams: 150 },
-        { q: "quinoa cooked", grams: 180 },
-        { q: "mixed vegetables cooked", grams: 180 }
-      ]},
-      { title: "Omelet + salad", items: [
-        { q: "egg", grams: 150 },
-        { q: "tomato", grams: 120 },
-        { q: "cucumber", grams: 160 }
-      ]},
-      { title: "Tuna + potatoes + broccoli", items: [
-        { q: "tuna canned in water", grams: 140 },
-        { q: "potato baked", grams: 220 },
-        { q: "broccoli cooked", grams: 130 }
-      ]},
-      { title: "Chicken + rice noodles + veg", items: [
-        { q: "chicken breast cooked", grams: 150 },
-        { q: "rice noodles cooked", grams: 190 },
-        { q: "mixed vegetables cooked", grams: 200 }
-      ]},
+   dinner: [
+      { title: "Chicken breast + salad", items:[{q:"chicken breast cooked",grams:170},{q:"tomato",grams:160},{q:"cucumber",grams:180}]},
+      { title: "Chicken breast + potatoes + cucumber", items:[{q:"chicken breast cooked",grams:160},{q:"potato baked",grams:220},{q:"cucumber",grams:150}]},
+      { title: "Salmon + salad", items:[{q:"salmon cooked",grams:140},{q:"tomato",grams:160},{q:"cucumber",grams:180}]},
+      { title: "Tuna + salad", items:[{q:"tuna canned in water",grams:140},{q:"tomato",grams:160},{q:"cucumber",grams:180}]},
+      { title: "Shrimp + noodles + veggies", items:[{q:"shrimp cooked",grams:160},{q:"rice noodles cooked",grams:190},{q:"mixed vegetables cooked",grams:200}]},
+      { title: "Egg omelet + salad", items:[{q:"egg",grams:150},{q:"tomato",grams:150},{q:"cucumber",grams:180}]},
+      { title: "Beef + potatoes + cucumber", items:[{q:"beef cooked",grams:150},{q:"potato baked",grams:240},{q:"cucumber",grams:160}]},
+      { title: "Chicken + rice + broccoli", items:[{q:"chicken breast cooked",grams:150},{q:"white rice cooked",grams:160},{q:"broccoli cooked",grams:140}]},
+      { title: "Salmon + rice + broccoli", items:[{q:"salmon cooked",grams:130},{q:"white rice cooked",grams:160},{q:"broccoli cooked",grams:140}]},
+      { title: "Chicken + quinoa + veggies", items:[{q:"chicken breast cooked",grams:150},{q:"quinoa cooked",grams:170},{q:"mixed vegetables cooked",grams:180}]},
+      { title: "Tuna + potatoes + broccoli", items:[{q:"tuna canned in water",grams:140},{q:"potato baked",grams:220},{q:"broccoli cooked",grams:140}]},
+      { title: "Chicken + rice noodles + veggies", items:[{q:"chicken breast cooked",grams:150},{q:"rice noodles cooked",grams:180},{q:"mixed vegetables cooked",grams:200}]},
     ]
   };
 
@@ -910,3 +827,4 @@
     } catch {}
   });
 })();
+
