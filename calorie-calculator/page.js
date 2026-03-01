@@ -15,14 +15,16 @@
   const fs = firebase.firestore();
 
   const $ = (id) => document.getElementById(id);
+
   const plannerWrap = $("plannerWrap");
   const btnLogout = $("btnLogout");
+  const msg = $("msg");
 
+  // Targets
   const tCals = $("tCals");
   const tP = $("tP");
   const tC = $("tC");
   const tF = $("tF");
-
   const btnSaveTargets = $("btnSaveTargets");
   const btnResetDay = $("btnResetDay");
 
@@ -30,26 +32,22 @@
   const pText = $("pText");
   const cText = $("cText");
   const fText = $("fText");
-
   const calsFill = $("calsFill");
   const pFill = $("pFill");
   const cFill = $("cFill");
   const fFill = $("fFill");
 
-  const foodInput = $("foodInput");
-  const suggest = $("suggest");
-  const picked = $("picked");
-  const grams = $("grams");
-  const btnAdd = $("btnAdd");
-  const btnClearPick = $("btnClearPick");
-  const msg = $("msg");
-  const log = $("log");
+  // Lists
+  const savedFoodsEl = $("savedFoods");
+  const logEl = $("log");
 
-  // Manual modal
-  const btnManual = $("btnManual");
-  const manualModal = $("manualModal");
-  const manualClose = $("manualClose");
-  const manualAdd = $("manualAdd");
+  // Food modal
+  const btnAddFood = $("btnAddFood");
+  const foodModal = $("foodModal");
+  const foodClose = $("foodClose");
+  const foodSaveLater = $("foodSaveLater");
+  const foodAddToday = $("foodAddToday");
+
   const mName = $("mName");
   const mGrams = $("mGrams");
   const mCals = $("mCals");
@@ -57,23 +55,19 @@
   const mC = $("mC");
   const mF = $("mF");
 
-  // Meal generator
-  const mealType = $("mealType");
-  const btnGenerateMeal = $("btnGenerateMeal");
-  const savedMeals = $("savedMeals");
-  const mealModal = $("mealModal");
-  const mealTitle = $("mealTitle");
-  const mealBody = $("mealBody");
-  const mealClose = $("mealClose");
-  const mealAgain = $("mealAgain");
-  const mealSave = $("mealSave");
-
+  // Helpers
   const round1 = (n) => Math.round((n + Number.EPSILON) * 10) / 10;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const num = (v) => {
     const n = Number(v);
     return Number.isFinite(n) ? n : 0;
   };
+  const safeStr = (s) => (s || "").toString().trim();
+
+  function uid() {
+    if (crypto && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+    return `id_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+  }
 
   function setMessage(text, ms = 900) {
     msg.textContent = text || "";
@@ -85,75 +79,44 @@
     return clamp((used / target) * 100, 0, 100);
   }
 
+  // State
   let currentUser = null;
-
   let targets = { cals: 1500, p: 95, c: 170, f: 45 };
-  let activeLog = [];
-  let saved = [];
-  let selectedFood = null;
 
+  // Today log (cleared by Reset)
+  let activeLog = [];
+
+  // Saved foods (never cleared by Reset)
+  let savedFoods = [];
+
+  // Local keys
   const keyTargets = () => `planner_targets_${currentUser?.uid || "guest"}`;
   const keyLog = () => `planner_log_${currentUser?.uid || "guest"}`;
-  const keyMeals = () => `planner_savedMeals_${currentUser?.uid || "guest"}`;
+  const keySavedFoods = () => `planner_savedFoods_${currentUser?.uid || "guest"}`;
 
-  function loadLocalTargets() {
+  function loadJSON(key, fallback) {
     try {
-      const raw = localStorage.getItem(keyTargets());
-      if (!raw) return null;
+      const raw = localStorage.getItem(key);
+      if (!raw) return fallback;
       const data = JSON.parse(raw);
-      return { cals: num(data.cals), p: num(data.p), c: num(data.c), f: num(data.f) };
-    } catch { return null; }
+      return data ?? fallback;
+    } catch {
+      return fallback;
+    }
   }
-  function saveLocalTargets() {
-    try { localStorage.setItem(keyTargets(), JSON.stringify(targets)); } catch {}
-  }
-  function loadLocalLog() {
-    try {
-      const raw = localStorage.getItem(keyLog());
-      if (!raw) return [];
-      const arr = JSON.parse(raw);
-      return Array.isArray(arr) ? arr : [];
-    } catch { return []; }
-  }
-  function saveLocalLog() {
-    try { localStorage.setItem(keyLog(), JSON.stringify(activeLog)); } catch {}
-  }
-  function loadLocalMeals() {
-    try {
-      const raw = localStorage.getItem(keyMeals());
-      if (!raw) return [];
-      const arr = JSON.parse(raw);
-      return Array.isArray(arr) ? arr : [];
-    } catch { return []; }
-  }
-  function saveLocalMeals() {
-    try { localStorage.setItem(keyMeals(), JSON.stringify(saved)); } catch {}
+  function saveJSON(key, data) {
+    try { localStorage.setItem(key, JSON.stringify(data)); } catch {}
   }
 
+  // Firestore refs
   function userRoot() {
     return fs.collection("users").doc(currentUser.uid).collection("planner");
   }
   function targetsRef() { return userRoot().doc("targets"); }
   function activeRef() { return userRoot().doc("active"); }
-  function savedMealsCol() { return userRoot().collection("savedMeals"); }
+  function savedFoodsCol() { return userRoot().collection("savedFoods"); }
 
-  // ✅ FIX: make API work on localhost live server too (calls your Vercel API)
-  const API_BASE =
-    (location.hostname === "localhost" || location.hostname === "127.0.0.1")
-      ? "https://eneno.vercel.app"
-      : "";
-
-  async function apiSearch(q) {
-    const r = await fetch(`${API_BASE}/api/fdc-search?q=${encodeURIComponent(q)}`);
-    if (!r.ok) throw new Error("search failed");
-    return r.json();
-  }
-  async function apiFood(fdcId) {
-    const r = await fetch(`${API_BASE}/api/fdc-food?fdcId=${encodeURIComponent(String(fdcId))}`);
-    if (!r.ok) throw new Error("food failed");
-    return r.json();
-  }
-
+  // Totals
   function computeTotals() {
     let cals = 0, p = 0, c = 0, f = 0;
     for (const it of activeLog) {
@@ -165,13 +128,11 @@
     return { cals, p, c, f };
   }
 
-  // ✅ CHANGED: exceeded behavior (0 left + red)
-  function applyOverState(textEl, fillEl, used, target, left) {
+  function applyOverState(textEl, fillEl, used, target) {
     const over = used > target && target > 0;
     textEl.classList.toggle("overText", over);
     fillEl.classList.toggle("overFill", over);
     fillEl.style.width = `${over ? 100 : pct(used, target)}%`;
-    return over;
   }
 
   function renderBars() {
@@ -187,10 +148,10 @@
     cText.textContent = `${round1(used.c)} used • ${round1(leftC)} left`;
     fText.textContent = `${round1(used.f)} used • ${round1(leftF)} left`;
 
-    applyOverState(calsText, calsFill, used.cals, targets.cals, leftCals);
-    applyOverState(pText, pFill, used.p, targets.p, leftP);
-    applyOverState(cText, cFill, used.c, targets.c, leftC);
-    applyOverState(fText, fFill, used.f, targets.f, leftF);
+    applyOverState(calsText, calsFill, used.cals, targets.cals);
+    applyOverState(pText, pFill, used.p, targets.p);
+    applyOverState(cText, cFill, used.c, targets.c);
+    applyOverState(fText, fFill, used.f, targets.f);
   }
 
   function renderTargetsInputs() {
@@ -200,25 +161,27 @@
     tF.value = String(targets.f);
   }
 
+  function fmtEntry(it) {
+    const gramsTxt = it.grams ? `${it.grams}g — ` : "";
+    return `${gramsTxt}${Math.round(num(it.totals?.cals))} kcal · P ${round1(num(it.totals?.p))}g · C ${round1(num(it.totals?.c))}g · F ${round1(num(it.totals?.f))}g`;
+  }
+
+  // Render today log
   function renderLog() {
-    log.innerHTML = "";
+    logEl.innerHTML = "";
     if (!activeLog.length) {
-      log.innerHTML = `<div class="muted">No foods logged yet.</div>`;
+      logEl.innerHTML = `<div class="muted">No foods yet today.</div>`;
       return;
     }
 
     activeLog.forEach((it, idx) => {
       const div = document.createElement("div");
       div.className = "noteItem";
-      const gramsTxt = it.grams ? `${it.grams}g — ` : "";
 
       div.innerHTML = `
         <div>
           <div style="font-weight:900">${it.label}</div>
-          <div class="tag">
-            ${gramsTxt}${Math.round(num(it.totals?.cals))} kcal
-            · P ${round1(num(it.totals?.p))}g · C ${round1(num(it.totals?.c))}g · F ${round1(num(it.totals?.f))}g
-          </div>
+          <div class="tag">${fmtEntry(it)}</div>
         </div>
         <button class="btn" style="padding:8px 10px; border-radius:12px; font-size:12px;">Delete</button>
       `;
@@ -226,11 +189,9 @@
       div.querySelector("button").addEventListener("click", async (e) => {
         e.stopPropagation();
         activeLog.splice(idx, 1);
-
-        saveLocalLog();
+        saveJSON(keyLog(), activeLog);
         renderLog();
         renderBars();
-
         try {
           await activeRef().set({
             log: activeLog,
@@ -239,52 +200,107 @@
         } catch {}
       });
 
-      log.appendChild(div);
+      logEl.appendChild(div);
     });
   }
 
-  function renderSavedMeals() {
-    savedMeals.innerHTML = "";
-    if (!saved.length) {
-      savedMeals.innerHTML = `<div class="muted">No saved meals yet.</div>`;
+  // Render saved foods
+  function renderSavedFoods() {
+    savedFoodsEl.innerHTML = "";
+    if (!savedFoods.length) {
+      savedFoodsEl.innerHTML = `<div class="muted">No saved foods yet. Add one and tap “Save for later”.</div>`;
       return;
     }
 
-    saved.forEach((m) => {
+    savedFoods.forEach((it) => {
       const div = document.createElement("div");
       div.className = "noteItem";
+      div.style.cursor = "pointer";
 
       div.innerHTML = `
-        <div>
-          <div style="font-weight:900">${m.title}</div>
-          <div class="tag">
-            ${Math.round(num(m.totals?.cals))} kcal ·
-            P ${round1(num(m.totals?.p))}g ·
-            C ${round1(num(m.totals?.c))}g ·
-            F ${round1(num(m.totals?.f))}g
+        <div style="min-width:0;">
+          <div style="font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+            ${it.label}
           </div>
+          <div class="tag">${fmtEntry(it)}</div>
         </div>
-        <div style="display:flex; gap:8px;">
-          <button class="btn" data-open="1" style="padding:8px 10px; border-radius:12px; font-size:12px;">Open</button>
+
+        <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
+          <button class="btn btnGood" data-add="1" style="padding:8px 10px; border-radius:12px; font-size:12px;">Add</button>
           <button class="btn" data-del="1" style="padding:8px 10px; border-radius:12px; font-size:12px;">Delete</button>
         </div>
       `;
 
-      div.querySelector('[data-open="1"]').addEventListener("click", () => openMeal(m));
-
-      div.querySelector('[data-del="1"]').addEventListener("click", async () => {
-        saved = saved.filter(x => x.id !== m.id);
-        saveLocalMeals();
-        renderSavedMeals();
-        setMessage("Deleted ✅");
-
-        try { await savedMealsCol().doc(m.id).delete(); } catch {}
+      // Click anywhere on the card adds to today (fast)
+      div.addEventListener("click", async () => {
+        await addSavedToToday(it);
       });
 
-      savedMeals.appendChild(div);
+      // Buttons
+      div.querySelector('[data-add="1"]').addEventListener("click", async (e) => {
+        e.stopPropagation();
+        await addSavedToToday(it);
+      });
+
+      div.querySelector('[data-del="1"]').addEventListener("click", async (e) => {
+        e.stopPropagation();
+        if (!confirm(`Delete "${it.label}" from Saved foods?`)) return;
+
+        savedFoods = savedFoods.filter(x => x.id !== it.id);
+        saveJSON(keySavedFoods(), savedFoods);
+        renderSavedFoods();
+        setMessage("Deleted ✅");
+
+        try { await savedFoodsCol().doc(it.id).delete(); } catch {}
+      });
+
+      savedFoodsEl.appendChild(div);
     });
   }
 
+  async function addSavedToToday(savedItem) {
+    // If saved has no grams (rare), ask once
+    let grams = num(savedItem.grams);
+    if (!grams || grams <= 0) {
+      const ans = prompt(`How many grams for "${savedItem.label}"?`, "100");
+      grams = num(ans);
+      if (!grams || grams <= 0) return;
+    }
+
+    // If the saved item totals are for a different grams amount, scale:
+    // We store totals for the savedItem.grams. If user picks different grams, scale.
+    const baseG = num(savedItem.grams) > 0 ? num(savedItem.grams) : grams;
+    const factor = baseG > 0 ? (grams / baseG) : 1;
+
+    const totals = {
+      cals: num(savedItem.totals?.cals) * factor,
+      p: num(savedItem.totals?.p) * factor,
+      c: num(savedItem.totals?.c) * factor,
+      f: num(savedItem.totals?.f) * factor
+    };
+
+    activeLog.unshift({
+      id: uid(),
+      label: savedItem.label,
+      grams,
+      totals
+    });
+
+    saveJSON(keyLog(), activeLog);
+    renderLog();
+    renderBars();
+
+    try {
+      await activeRef().set({
+        log: activeLog,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+    } catch {}
+
+    setMessage("Added ✅");
+  }
+
+  // Cloud: targets / log / saved foods
   async function loadTargetsCloud() {
     const snap = await targetsRef().get();
     if (!snap.exists) return null;
@@ -311,30 +327,30 @@
     }, { merge: true });
   }
 
-  async function loadMealsCloud() {
+  async function loadSavedFoodsCloud() {
     const out = [];
-    const snap = await savedMealsCol().orderBy("createdAtMs", "desc").limit(200).get();
+    const snap = await savedFoodsCol().orderBy("createdAtMs", "desc").limit(500).get();
     snap.forEach(doc => out.push({ id: doc.id, ...(doc.data() || {}) }));
     return out;
   }
-  async function saveMealCloud(meal) {
-    await savedMealsCol().doc(meal.id).set({
-      title: meal.title,
-      lines: meal.lines,
-      totals: meal.totals,
+  async function saveSavedFoodCloud(item) {
+    await savedFoodsCol().doc(item.id).set({
+      label: item.label,
+      grams: item.grams || null,
+      totals: item.totals,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      createdAtMs: meal.createdAtMs || Date.now()
+      createdAtMs: item.createdAtMs || Date.now()
     }, { merge: true });
   }
 
-  // Targets persist
+  // Targets persistence
   let targetsSaveTimer = null;
   function setTargetsFromInputs() {
     targets = { cals: num(tCals.value), p: num(tP.value), c: num(tC.value), f: num(tF.value) };
   }
   function persistTargetsNow() {
     setTargetsFromInputs();
-    saveLocalTargets();
+    saveJSON(keyTargets(), targets);
     renderBars();
     clearTimeout(targetsSaveTimer);
     targetsSaveTimer = setTimeout(async () => {
@@ -355,196 +371,22 @@
     setMessage("Targets saved ✅");
   });
 
-  // ✅ FIX: cleaner food suggestions (dedupe + remove branded spam + fewer results)
-  const norm = (s = "") =>
-    s.toLowerCase()
-      .replace(/\([^)]*\)/g, "")
-      .replace(/[^a-z0-9\s]/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
+  // Reset today log only
+  btnResetDay.addEventListener("click", async () => {
+    if (!confirm("Reset and clear ONLY today’s log? (Saved foods will stay)")) return;
 
-  const isJunkBrand = (s = "") => {
-    const d = s.toLowerCase();
-    return (
-      d.includes("restaurant") ||
-      d.includes("mcdonald") ||
-      d.includes("burger king") ||
-      d.includes("wendy") ||
-      d.includes("kfc") ||
-      d.includes("starbucks") ||
-      d.includes("trader joe") ||
-      d.includes("walmart") ||
-      d.includes("costco") ||
-      d.includes("kroger") ||
-      d.includes("®") ||
-      d.includes("™")
-    );
-  };
-
-  function scoreSuggestion(item, q) {
-    const desc = item.description || "";
-    const d = desc.toLowerCase();
-    const query = (q || "").toLowerCase();
-
-    let score = 0;
-    if (item.dataType === "Foundation") score += 40;
-    if (item.dataType === "SR Legacy") score += 30;
-    if (item.dataType === "Survey (FNDDS)") score += 25;
-    if (item.dataType === "Branded") score -= 80;
-
-    if (d === query) score += 40;
-    if (d.startsWith(query)) score += 25;
-    if (d.includes(query)) score += 10;
-
-    if (isJunkBrand(desc)) score -= 40;
-    score += Math.max(0, 20 - desc.length * 0.15);
-
-    return score;
-  }
-
-  // Typeahead
-  let timer = null;
-  let lastQ = "";
-  let openSuggest = false;
-
-  function hideSuggest() {
-    suggest.style.display = "none";
-    suggest.innerHTML = "";
-    openSuggest = false;
-  }
-
-  function showSuggest(items) {
-    suggest.innerHTML = "";
-    if (!items.length) {
-      suggest.innerHTML = `<div class="muted" style="padding:8px 10px;">No matches.</div>`;
-      suggest.style.display = "block";
-      openSuggest = true;
-      return;
-    }
-
-    items.forEach((f) => {
-      const row = document.createElement("div");
-      row.className = "suggestItem";
-      const cat = f.foodCategory ? ` • ${f.foodCategory}` : "";
-      row.innerHTML = `
-        <div style="min-width:0;">
-          <div style="font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-            ${f.description}
-          </div>
-          <div class="miniTag">${f.dataType}${cat}</div>
-        </div>
-        <div class="miniTag">Pick</div>
-      `;
-
-      row.addEventListener("click", async () => {
-        try {
-          msg.textContent = "Loading nutrition…";
-          const d = await apiFood(f.fdcId);
-
-          selectedFood = {
-            label: d.label,
-            per100: { cals: num(d.per100?.cals), p: num(d.per100?.p), c: num(d.per100?.c), f: num(d.per100?.f) }
-          };
-
-          picked.textContent = `${selectedFood.label} — per 100g: ${Math.round(selectedFood.per100.cals)} kcal`;
-          btnAdd.disabled = false;
-          hideSuggest();
-          msg.textContent = "";
-        } catch {
-          setMessage("Couldn’t load that item. Pick another.");
-        }
-      });
-
-      suggest.appendChild(row);
-    });
-
-    suggest.style.display = "block";
-    openSuggest = true;
-  }
-
-  foodInput.addEventListener("input", () => {
-    const q = (foodInput.value || "").trim();
-    btnAdd.disabled = true;
-    selectedFood = null;
-    picked.textContent = "None";
-    if (q.length < 2) { hideSuggest(); return; }
-
-    clearTimeout(timer);
-    timer = setTimeout(async () => {
-      if (q === lastQ) return;
-      lastQ = q;
-      try {
-        const data = await apiSearch(q);
-
-        let foods = (data.foods || []);
-
-        // remove branded + obvious junk
-        foods = foods.filter(f => f.dataType !== "Branded" && !isJunkBrand(f.description || ""));
-
-        // dedupe by normalized description
-        const seen = new Set();
-        foods = foods.filter(f => {
-          const k = norm(f.description || "");
-          if (!k) return false;
-          if (seen.has(k)) return false;
-          seen.add(k);
-          return true;
-        });
-
-        // rank best first
-        foods.sort((a, b) => scoreSuggestion(b, q) - scoreSuggestion(a, q));
-
-        // show fewer options (clean)
-        showSuggest(foods.slice(0, 10));
-      } catch {
-        showSuggest([]);
-      }
-    }, 160);
-  });
-
-  document.addEventListener("click", (e) => {
-    if (!openSuggest) return;
-    if (e.target === foodInput) return;
-    if (suggest.contains(e.target)) return;
-    hideSuggest();
-  });
-
-  btnClearPick.addEventListener("click", () => {
-    selectedFood = null;
-    foodInput.value = "";
-    picked.textContent = "None";
-    btnAdd.disabled = true;
-    hideSuggest();
-  });
-
-  // Add from API
-  btnAdd.addEventListener("click", async () => {
-    if (!selectedFood) return;
-
-    const g = num(grams.value);
-    if (!g || g <= 0) { setMessage("Enter grams (like 100)."); return; }
-
-    const factor = g / 100;
-    const totals = {
-      cals: selectedFood.per100.cals * factor,
-      p: selectedFood.per100.p * factor,
-      c: selectedFood.per100.c * factor,
-      f: selectedFood.per100.f * factor,
-    };
-
-    activeLog.unshift({ label: selectedFood.label, grams: g, totals });
-
-    saveLocalLog();
+    activeLog = [];
+    saveJSON(keyLog(), activeLog);
     renderLog();
     renderBars();
 
-    try { await saveActiveCloud(); } catch {}
-    setMessage("Added ✅");
+    try { await activeRef().delete(); } catch {}
+    setMessage("Reset ✅");
   });
 
-  // Manual modal
-  function openManual() {
-    manualModal.style.display = "flex";
+  // Modal open/close
+  function openFoodModal() {
+    foodModal.style.display = "flex";
     mName.value = "";
     mGrams.value = "";
     mCals.value = "";
@@ -553,225 +395,87 @@
     mF.value = "";
     setTimeout(() => mName.focus(), 40);
   }
-  function closeManual() { manualModal.style.display = "none"; }
+  function closeFoodModal() {
+    foodModal.style.display = "none";
+  }
 
-  btnManual.addEventListener("click", openManual);
-  manualClose.addEventListener("click", closeManual);
-  manualModal.addEventListener("click", (e) => { if (e.target === manualModal) closeManual(); });
+  btnAddFood.addEventListener("click", openFoodModal);
+  foodClose.addEventListener("click", closeFoodModal);
+  foodModal.addEventListener("click", (e) => { if (e.target === foodModal) closeFoodModal(); });
 
-  manualAdd.addEventListener("click", async () => {
-    const name = (mName.value || "").trim();
-    const g = num(mGrams.value);
-
+  function readFoodFromModal() {
+    const label = safeStr(mName.value);
+    const grams = num(mGrams.value);
     const cals = num(mCals.value);
     const p = num(mP.value);
     const c = num(mC.value);
     const f = num(mF.value);
 
-    if (!name) { setMessage("Manual: add a name."); return; }
-    if (cals <= 0 && p <= 0 && c <= 0 && f <= 0) {
-      setMessage("Manual: enter calories or macros.");
-      return;
-    }
+    if (!label) return { ok:false, msg:"Add a name." };
+    if (cals <= 0 && p <= 0 && c <= 0 && f <= 0) return { ok:false, msg:"Enter calories or macros." };
+
+    return {
+      ok: true,
+      item: {
+        id: uid(),
+        label,
+        grams: grams > 0 ? grams : null,
+        totals: { cals, p, c, f },
+        createdAtMs: Date.now()
+      }
+    };
+  }
+
+  // Add to today
+  foodAddToday.addEventListener("click", async () => {
+    const res = readFoodFromModal();
+    if (!res.ok) { setMessage(res.msg); return; }
+
+    const it = res.item;
 
     activeLog.unshift({
-      label: `${name} (manual)`,
-      grams: g > 0 ? g : null,
-      totals: { cals, p, c, f }
+      id: it.id,
+      label: it.label,
+      grams: it.grams,
+      totals: it.totals
     });
 
-    saveLocalLog();
+    saveJSON(keyLog(), activeLog);
     renderLog();
     renderBars();
 
     try { await saveActiveCloud(); } catch {}
 
-    closeManual();
-    setMessage("Added manually ✅");
+    closeFoodModal();
+    setMessage("Added ✅");
   });
 
-  // Reset day
-  btnResetDay.addEventListener("click", async () => {
-    if (!confirm("Reset and clear the log?")) return;
+  // Save for later
+  foodSaveLater.addEventListener("click", async () => {
+    const res = readFoodFromModal();
+    if (!res.ok) { setMessage(res.msg); return; }
 
-    activeLog = [];
-    saveLocalLog();
-    renderLog();
-    renderBars();
+    const it = res.item;
 
-    try { await activeRef().delete(); } catch {}
-    setMessage("Reset ✅");
-  });
+    // If same name exists, don’t duplicate — replace it (makes it cleaner for her)
+    const nameKey = it.label.toLowerCase();
+    const existing = savedFoods.find(x => (x.label || "").toLowerCase() === nameKey);
 
-  // ✅ FIX: BIG meal variety + Try Again really different
-  const TEMPLATES = {
-    breakfast: [
-      { title: "Greek yogurt + granola + blueberries", items:[{q:"greek yogurt",grams:150},{q:"granola",grams:30},{q:"blueberries",grams:80}]},
-      { title: "Greek yogurt + granola + strawberries", items:[{q:"greek yogurt",grams:150},{q:"granola",grams:30},{q:"strawberries",grams:100}]},
-      { title: "Greek yogurt + banana + honey", items:[{q:"greek yogurt",grams:150},{q:"banana raw",grams:120},{q:"honey",grams:8}]},
-      { title: "Greek yogurt + apple + granola", items:[{q:"greek yogurt",grams:150},{q:"apple raw",grams:160},{q:"granola",grams:25}]},
-      { title: "Oatmeal + banana + berries", items:[{q:"oats",grams:50},{q:"banana raw",grams:100},{q:"blueberries",grams:60}]},
-      { title: "Oatmeal + strawberries", items:[{q:"oats",grams:50},{q:"strawberries",grams:120}]},
-      { title: "Eggs + toast + cucumber", items:[{q:"egg",grams:100},{q:"whole wheat bread",grams:60},{q:"cucumber",grams:140}]},
-      { title: "Eggs + potatoes + tomato", items:[{q:"egg",grams:100},{q:"potato baked",grams:200},{q:"tomato",grams:120}]},
-      { title: "Cottage cheese + apple", items:[{q:"cottage cheese",grams:200},{q:"apple raw",grams:160}]},
-      { title: "Cottage cheese + berries", items:[{q:"cottage cheese",grams:200},{q:"blueberries",grams:90}]},
-      { title: "Rice cakes + yogurt + berries", items:[{q:"rice cake",grams:20},{q:"greek yogurt",grams:150},{q:"strawberries",grams:100}]},
-      { title: "Banana + yogurt (simple)", items:[{q:"banana raw",grams:120},{q:"greek yogurt",grams:150}]},
-    ],
-
-    lunch: [
-      { title: "Chicken breast + rice + cucumber", items:[{q:"chicken breast cooked",grams:160},{q:"white rice cooked",grams:180},{q:"cucumber",grams:150}]},
-      { title: "Chicken breast + rice + tomato", items:[{q:"chicken breast cooked",grams:160},{q:"white rice cooked",grams:180},{q:"tomato",grams:150}]},
-      { title: "Chicken breast + potatoes + salad", items:[{q:"chicken breast cooked",grams:170},{q:"potato baked",grams:240},{q:"cucumber",grams:150}]},
-      { title: "Salmon + potatoes + broccoli", items:[{q:"salmon cooked",grams:140},{q:"potato baked",grams:220},{q:"broccoli cooked",grams:140}]},
-      { title: "Salmon + rice + cucumber", items:[{q:"salmon cooked",grams:140},{q:"white rice cooked",grams:170},{q:"cucumber",grams:150}]},
-      { title: "Tuna + rice + cucumber", items:[{q:"tuna canned in water",grams:140},{q:"white rice cooked",grams:170},{q:"cucumber",grams:150}]},
-      { title: "Tuna + potatoes + tomato", items:[{q:"tuna canned in water",grams:140},{q:"potato baked",grams:220},{q:"tomato",grams:140}]},
-      { title: "Shrimp + rice + veggies", items:[{q:"shrimp cooked",grams:160},{q:"white rice cooked",grams:170},{q:"mixed vegetables cooked",grams:180}]},
-      { title: "Beef + rice + tomato", items:[{q:"beef cooked",grams:150},{q:"white rice cooked",grams:170},{q:"tomato",grams:140}]},
-      { title: "Eggs + rice + cucumber", items:[{q:"egg",grams:150},{q:"white rice cooked",grams:170},{q:"cucumber",grams:150}]},
-      { title: "Chicken + pasta + veggies", items:[{q:"chicken breast cooked",grams:150},{q:"pasta cooked",grams:180},{q:"mixed vegetables cooked",grams:180}]},
-      { title: "Salmon + quinoa + veggies", items:[{q:"salmon cooked",grams:140},{q:"quinoa cooked",grams:180},{q:"mixed vegetables cooked",grams:180}]},
-    ],
-
-   dinner: [
-      { title: "Chicken breast + salad", items:[{q:"chicken breast cooked",grams:170},{q:"tomato",grams:160},{q:"cucumber",grams:180}]},
-      { title: "Chicken breast + potatoes + cucumber", items:[{q:"chicken breast cooked",grams:160},{q:"potato baked",grams:220},{q:"cucumber",grams:150}]},
-      { title: "Salmon + salad", items:[{q:"salmon cooked",grams:140},{q:"tomato",grams:160},{q:"cucumber",grams:180}]},
-      { title: "Tuna + salad", items:[{q:"tuna canned in water",grams:140},{q:"tomato",grams:160},{q:"cucumber",grams:180}]},
-      { title: "Shrimp + noodles + veggies", items:[{q:"shrimp cooked",grams:160},{q:"rice noodles cooked",grams:190},{q:"mixed vegetables cooked",grams:200}]},
-      { title: "Egg omelet + salad", items:[{q:"egg",grams:150},{q:"tomato",grams:150},{q:"cucumber",grams:180}]},
-      { title: "Beef + potatoes + cucumber", items:[{q:"beef cooked",grams:150},{q:"potato baked",grams:240},{q:"cucumber",grams:160}]},
-      { title: "Chicken + rice + broccoli", items:[{q:"chicken breast cooked",grams:150},{q:"white rice cooked",grams:160},{q:"broccoli cooked",grams:140}]},
-      { title: "Salmon + rice + broccoli", items:[{q:"salmon cooked",grams:130},{q:"white rice cooked",grams:160},{q:"broccoli cooked",grams:140}]},
-      { title: "Chicken + quinoa + veggies", items:[{q:"chicken breast cooked",grams:150},{q:"quinoa cooked",grams:170},{q:"mixed vegetables cooked",grams:180}]},
-      { title: "Tuna + potatoes + broccoli", items:[{q:"tuna canned in water",grams:140},{q:"potato baked",grams:220},{q:"broccoli cooked",grams:140}]},
-      { title: "Chicken + rice noodles + veggies", items:[{q:"chicken breast cooked",grams:150},{q:"rice noodles cooked",grams:180},{q:"mixed vegetables cooked",grams:200}]},
-    ]
-  };
-
-  function shuffle(arr) {
-    const a = arr.slice();
-    for (let i = a.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [a[i], a[j]] = [a[j], a[i]];
-    }
-    return a;
-  }
-
-  // pool per type so Try again cycles different meals
-  const pools = { breakfast: [], lunch: [], dinner: [] };
-  let lastTplTitle = { breakfast: "", lunch: "", dinner: "" };
-
-  function nextTemplate(type) {
-    if (!pools[type].length) pools[type] = shuffle(TEMPLATES[type] || []);
-    let tpl = pools[type].shift();
-    // avoid repeating the same title back-to-back
-    if (tpl && tpl.title === lastTplTitle[type] && (TEMPLATES[type] || []).length > 1) {
-      if (!pools[type].length) pools[type] = shuffle(TEMPLATES[type] || []);
-      const alt = pools[type].shift();
-      if (alt) {
-        pools[type].unshift(tpl);
-        tpl = alt;
-      }
-    }
-    lastTplTitle[type] = tpl?.title || "";
-    return tpl;
-  }
-
-  async function pickTopId(query) {
-    const data = await apiSearch(query);
-    let foods = (data.foods || []);
-    if (!foods.length) return null;
-
-    // prefer best dataset
-    const preferred =
-      foods.find(f => f.dataType === "Foundation") ||
-      foods.find(f => f.dataType === "SR Legacy") ||
-      foods.find(f => f.dataType === "Survey (FNDDS)") ||
-      foods[0];
-
-    return preferred.fdcId;
-  }
-
-  async function buildMeal(type) {
-    const tpl = nextTemplate(type);
-    if (!tpl) throw new Error("no templates");
-
-    const lines = [];
-    const totals = { cals: 0, p: 0, c: 0, f: 0 };
-
-    for (const item of tpl.items) {
-      const fdcId = await pickTopId(item.q);
-      if (!fdcId) { lines.push(`• ${item.q} — not found`); continue; }
-      const d = await apiFood(fdcId);
-
-      const per100 = { cals: num(d.per100?.cals), p: num(d.per100?.p), c: num(d.per100?.c), f: num(d.per100?.f) };
-      const factor = num(item.grams) / 100;
-
-      const t = { cals: per100.cals * factor, p: per100.p * factor, c: per100.c * factor, f: per100.f * factor };
-      totals.cals += t.cals; totals.p += t.p; totals.c += t.c; totals.f += t.f;
-
-      lines.push(`• ${d.label} — ${item.grams}g | ${Math.round(t.cals)} kcal (P ${round1(t.p)} / C ${round1(t.c)} / F ${round1(t.f)})`);
+    if (existing) {
+      it.id = existing.id; // keep same id so cloud doc updates
+      savedFoods = savedFoods.map(x => x.id === existing.id ? it : x);
+    } else {
+      savedFoods.unshift(it);
+      savedFoods = savedFoods.slice(0, 500);
     }
 
-    return { id: crypto.randomUUID(), title: `${type.toUpperCase()} — ${tpl.title}`, lines, totals, createdAtMs: Date.now() };
-  }
+    saveJSON(keySavedFoods(), savedFoods);
+    renderSavedFoods();
 
-  let currentMeal = null;
-  function openMeal(meal) {
-    currentMeal = meal;
-    mealTitle.textContent = meal.title;
-    mealBody.textContent =
-      meal.lines.join("\n") +
-      `\n\nTOTAL: ${Math.round(num(meal.totals.cals))} kcal | P ${round1(num(meal.totals.p))}g  C ${round1(num(meal.totals.c))}g  F ${round1(num(meal.totals.f))}g`;
-    mealModal.style.display = "flex";
-  }
-  function closeMeal() { mealModal.style.display = "none"; }
+    try { await saveSavedFoodCloud(it); } catch {}
 
-  mealClose.addEventListener("click", closeMeal);
-  mealModal.addEventListener("click", (e) => { if (e.target === mealModal) closeMeal(); });
-  window.addEventListener("keydown", (e) => { if (e.key === "Escape") closeMeal(); });
-
-  btnGenerateMeal.addEventListener("click", async () => {
-    btnGenerateMeal.disabled = true;
-    btnGenerateMeal.textContent = "Generating…";
-    try {
-      const meal = await buildMeal(mealType.value);
-      openMeal(meal);
-    } catch {
-      alert("Meal generation failed.");
-    } finally {
-      btnGenerateMeal.disabled = false;
-      btnGenerateMeal.textContent = "Generate meal";
-    }
-  });
-
-  mealAgain.addEventListener("click", async () => {
-    mealAgain.disabled = true;
-    mealAgain.textContent = "…";
-    try {
-      const meal = await buildMeal(mealType.value);
-      openMeal(meal);
-    } finally {
-      mealAgain.disabled = false;
-      mealAgain.textContent = "Try again";
-    }
-  });
-
-  mealSave.addEventListener("click", async () => {
-    if (!currentMeal) return;
-
-    saved.unshift(currentMeal);
-    saved = saved.slice(0, 200);
-    saveLocalMeals();
-    renderSavedMeals();
-
-    try { await saveMealCloud(currentMeal); } catch {}
-
-    closeMeal();
-    setMessage("Saved meal ✅");
+    closeFoodModal();
+    setMessage("Saved ✅");
   });
 
   // Logout
@@ -786,22 +490,24 @@
     currentUser = user;
     plannerWrap.style.display = "block";
 
-    const localT = loadLocalTargets();
-    if (localT) targets = localT;
+    // Local first
+    const localT = loadJSON(keyTargets(), null);
+    if (localT) targets = { cals:num(localT.cals), p:num(localT.p), c:num(localT.c), f:num(localT.f) };
 
-    activeLog = loadLocalLog();
-    saved = loadLocalMeals();
+    activeLog = loadJSON(keyLog(), []);
+    savedFoods = loadJSON(keySavedFoods(), []);
 
     renderTargetsInputs();
+    renderSavedFoods();
     renderLog();
-    renderSavedMeals();
     renderBars();
 
+    // Cloud overwrite (if exists)
     try {
       const cloudT = await loadTargetsCloud();
       if (cloudT && (cloudT.cals || cloudT.p || cloudT.c || cloudT.f)) {
         targets = cloudT;
-        saveLocalTargets();
+        saveJSON(keyTargets(), targets);
         renderTargetsInputs();
         renderBars();
       }
@@ -811,20 +517,19 @@
       const cloudLog = await loadActiveCloud();
       if (Array.isArray(cloudLog)) {
         activeLog = cloudLog;
-        saveLocalLog();
+        saveJSON(keyLog(), activeLog);
         renderLog();
         renderBars();
       }
     } catch {}
 
     try {
-      const cloudMeals = await loadMealsCloud();
-      if (Array.isArray(cloudMeals) && cloudMeals.length) {
-        saved = cloudMeals;
-        saveLocalMeals();
-        renderSavedMeals();
+      const cloudSaved = await loadSavedFoodsCloud();
+      if (Array.isArray(cloudSaved) && cloudSaved.length) {
+        savedFoods = cloudSaved;
+        saveJSON(keySavedFoods(), savedFoods);
+        renderSavedFoods();
       }
     } catch {}
   });
 })();
-
