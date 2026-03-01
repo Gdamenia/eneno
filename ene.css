@@ -664,3 +664,36 @@ a {
   opacity:.75;
   font-size:13px;
 }
+
+/* Make the popup fit the phone screen and scroll INSIDE it */
+.verse-modal__card{
+  /* keep your existing styles, but add/override these: */
+  max-height: 82vh;          /* card never exceeds screen */
+  display: flex;
+  flex-direction: column;
+}
+
+/* Verse text becomes the scroll area when it's long */
+.verse{
+  margin-top: 14px;
+  font-size: 18px;
+  line-height: 1.7;
+  font-style: italic;
+
+  overflow-y: auto;          /* scroll inside */
+  max-height: 48vh;          /* limit verse height */
+  padding-right: 6px;        /* space so scrollbar doesn't sit on text */
+}
+
+/* On small screens, give verse even more room */
+@media (max-width: 480px){
+  .verse-modal__card{
+    margin: 6vh auto 0;
+    max-height: 88vh;
+  }
+  .verse{
+    max-height: 56vh;
+    font-size: 17px;
+  }
+}
+
