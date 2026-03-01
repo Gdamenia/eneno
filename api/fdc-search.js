@@ -1,11 +1,4 @@
-// api/fdc-search.js
-
-const BAD_WORDS = [
-  "burger","sandwich","school","restaurant","fast food","combo","kids",
-  "mcdonald","wendy","kfc","taco","pizza","sub","wrap",
-  "sauce packet","meal","tv dinner","frozen dinner","microwave",
-  "brand","®","™"
-];
+// /api/fdc-search.js
 
 function norm(s = "") {
   return s
@@ -16,31 +9,80 @@ function norm(s = "") {
     .trim();
 }
 
-function hasBadWords(desc = "") {
-  const d = desc.toLowerCase();
-  return BAD_WORDS.some(w => d.includes(w));
+function tokensFrom(q = "") {
+  return norm(q).split(" ").filter(Boolean);
 }
 
-function tokenScore(desc, q) {
+function datasetScore(dt = "") {
+  if (dt === "Foundation") return 100;
+  if (dt === "SR Legacy") return 90;
+  if (dt === "Survey (FNDDS)") return 80;
+  return 0;
+}
+
+function isJunk(desc = "") {
+  const d = desc.toLowerCase();
+
+  // Anything that’s not “normal cooking food”
+  const BAD = [
+    // places / brands / products
+    "restaurant","school","cafeteria","fast food","takeout","ready-to-eat",
+    "mcdonald","burger king","wendy","kfc","subway","starbucks",
+    "trader joe","walmart","costco","kroger","aldi","whole foods",
+    "brand","branded","®","™",
+
+    // baby / pet / supplement / alcohol
+    "infant","baby","toddler","formula",
+    "pet","dog","cat",
+    "supplement","protein powder","preworkout","meal replacement",
+    "beer","wine","vodka","whiskey","rum",
+
+    // ultra processed meals
+    "pizza","burrito","taco","sandwich","burger","nugget","hot dog",
+    "frozen dinner","microwave","tv dinner",
+
+    // weird meats (remove confusing stuff)
+    "emu","ostrich","venison","elk","bison","boar","rabbit","duck","goose","kangaroo"
+  ];
+
+  if (BAD.some(w => d.includes(w))) return true;
+
+  // too long descriptions are usually product-like
+  if (d.length > 90) return true;
+
+  return false;
+}
+
+// Must include query words (prevents “burger” when user wants “chicken fillet”)
+function matchesQuery(desc = "", qTokens = []) {
   const d = norm(desc);
-  const qq = norm(q);
-  const dt = new Set(d.split(" ").filter(Boolean));
-  const qt = qq.split(" ").filter(Boolean);
-  if (!qt.length) return 0;
+  const t = qTokens.filter(x => x.length >= 2);
+  if (!t.length) return true;
+  return t.every(w => d.includes(w));
+}
 
-  let hit = 0;
-  for (const t of qt) if (dt.has(t)) hit++;
+// Boost “basic foods”
+function basicBoost(desc = "") {
+  const d = desc.toLowerCase();
+  let s = 0;
 
-  // reward exact / startsWith / contains
-  let bonus = 0;
-  if (d === qq) bonus += 6;
-  if (d.startsWith(qq)) bonus += 4;
-  if (d.includes(qq)) bonus += 2;
+  // good words
+  const GOOD = [
+    "raw","cooked","baked","boiled","grilled",
+    "breast","fillet","filet","loin","thigh",
+    "plain","without","unsalted","no salt"
+  ];
 
-  // shorter names feel more “normal”
-  const shortBonus = Math.max(0, 8 - Math.floor(d.length / 12));
+  // bad words
+  const BAD = [
+    "breaded","fried","with sauce","sweetened",
+    "ready-to-eat","seasoned","marinated"
+  ];
 
-  return hit * 10 + bonus + shortBonus;
+  if (GOOD.some(w => d.includes(w))) s += 20;
+  if (BAD.some(w => d.includes(w))) s -= 15;
+
+  return s;
 }
 
 export default async function handler(req, res) {
@@ -53,23 +95,14 @@ export default async function handler(req, res) {
 
     const url = new URL("https://api.nal.usda.gov/fdc/v1/foods/search");
     url.searchParams.set("api_key", apiKey);
+    url.searchParams.set("query", q);
+    url.searchParams.set("pageSize", "60"); // get more, then filter hard
 
-    const r = await fetch(url.toString(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        query: q,
-        pageSize: 50,
-        // ✅ Clean foods only
-        dataType: ["Foundation", "SR Legacy"]
-      })
-    });
-
-    if (!r.ok) {
-      return res.status(500).json({ error: "Search failed" });
-    }
-
+    const r = await fetch(url.toString());
     const data = await r.json();
+
+    const qTokens = tokensFrom(q);
+
     let foods = (data.foods || []).map(f => ({
       fdcId: f.fdcId,
       description: f.description,
@@ -77,10 +110,16 @@ export default async function handler(req, res) {
       foodCategory: f.foodCategory
     }));
 
-    // remove junk words
-    foods = foods.filter(f => !hasBadWords(f.description || ""));
+    // 1) remove branded completely
+    foods = foods.filter(f => f.dataType !== "Branded");
 
-    // dedupe by normalized description
+    // 2) remove junk by keywords
+    foods = foods.filter(f => !isJunk(f.description || ""));
+
+    // 3) enforce query word matching
+    foods = foods.filter(f => matchesQuery(f.description || "", qTokens));
+
+    // 4) dedupe
     const seen = new Set();
     foods = foods.filter(f => {
       const k = norm(f.description || "");
@@ -90,16 +129,24 @@ export default async function handler(req, res) {
       return true;
     });
 
-    // rank by “how human” it looks + token match
-    foods.sort((a, b) =>
-      tokenScore(b.description, q) - tokenScore(a.description, q)
-    );
+    // 5) rank
+    foods.sort((a, b) => {
+      const sa =
+        datasetScore(a.dataType) +
+        basicBoost(a.description || "") -
+        (a.description?.length || 0) * 0.2;
 
-    // limit options
-    foods = foods.slice(0, 12);
+      const sb =
+        datasetScore(b.dataType) +
+        basicBoost(b.description || "") -
+        (b.description?.length || 0) * 0.2;
 
-    res.status(200).json({ foods });
+      return sb - sa;
+    });
+
+    // 6) return clean top 10
+    return res.status(200).json({ foods: foods.slice(0, 10) });
   } catch (e) {
-    res.status(500).json({ error: "Search failed" });
+    return res.status(500).json({ error: "Search failed" });
   }
 }
