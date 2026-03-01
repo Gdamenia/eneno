@@ -448,7 +448,169 @@ textarea{
   color: var(--text);
   outline: none;
 }
+a {
+  text-decoration: none;
+  color: inherit;
+}
 
+.pageTitle {
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.sectionGap {
+  margin-top: 16px;
+}
+
+/* GOD WORDS PAGE */
+
+.god-page {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 24px 18px 40px;
+}
+
+.god-header {
+  margin-bottom: 24px;
+}
+
+.god-title {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.god-subtitle {
+  opacity: 0.75;
+  margin-top: 8px;
+}
+
+.section-title {
+  font-size: 20px;
+  margin: 18px 0 10px;
+  font-weight: 600;
+}
+
+.feeling-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.feeling-btn {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.feeling-btn:hover {
+  background: rgba(255,255,255,0.18);
+  transform: translateY(-1px);
+}
+
+.feeling-label {
+  font-weight: 500;
+}
+
+.feeling-sub {
+  opacity: 0.6;
+  margin-left: 4px;
+}
+
+.result-card {
+  margin-top: 24px;
+  padding: 18px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.06);
+  backdrop-filter: blur(12px);
+}
+
+.result-badge {
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.verse {
+  margin-top: 14px;
+  font-size: 18px;
+  line-height: 1.6;
+  font-style: italic;
+}
+
+.verse-ref {
+  display: block;
+  margin-top: 8px;
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.tiny-note {
+  font-size: 12px;
+  opacity: 0.6;
+  margin-top: 10px;
+}
+
+/* =========================
+   GOD WORDS – VERTICAL LIST
+   ========================= */
+
+.feeling-list{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  max-width: 520px;
+}
+
+.feeling-btn{
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:12px 14px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.06);
+  cursor:pointer;
+  transition: .18s ease;
+}
+
+.feeling-btn:hover{
+  transform: translateY(-1px);
+  background: rgba(255,255,255,0.10);
+}
+
+.feeling-left{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.feeling-emoji{
+  font-size: 18px;
+}
+
+.feeling-name{
+  font-weight:600;
+}
+
+.feeling-hint{
+  font-size: 12px;
+  opacity: .65;
+  margin-left: 8px;
+}
+
+.feeling-arrow{
+  opacity:.65;
+  font-size: 18px;
+}
+
+/* =========================
+   FULLSCREEN VERSE POPUP
+   ========================= */
 
 .verse-modal[hidden]{ display:none; }
 
@@ -502,4 +664,3 @@ textarea{
   opacity:.75;
   font-size:13px;
 }
-
