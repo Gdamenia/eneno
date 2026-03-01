@@ -1,24 +1,60 @@
 <!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>God’s Words</title>
-    <link rel="stylesheet" href="/ene.css" />
-  </head>
-  <body>
-    <div class="wrap">
-      <header class="header">
-        <div class="actions">
-          <a class="btn" href="/">Home</a>
-          <a class="btn" href="/calorie-calculator/">Calorie Planner</a>
-        </div>
-      </header>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>What would God tell you today?</title>
 
-      <section class="card section">
-        <h2 class="h2">God’s Words ✨</h2>
-        <p class="muted">Coming soon…</p>
-      </section>
+  <!-- enegame/ene.css is one folder up from gods-words/ -->
+  <link rel="stylesheet" href="../ene.css">
+</head>
+
+<body>
+  <main class="god-page" id="godPage">
+    <header class="god-header">
+      <h1 class="god-title">What would God tell you?</h1>
+      <p class="god-subtitle"></p>
+    </header>
+
+    <section class="feelings" aria-label="How are you feeling?">
+      <h2 class="section-title">Tavs rogor grdznob chemo sicocxle?</h2>
+
+      <!-- Vertical list -->
+      <div class="feeling-list" id="feelingGrid"></div>
+
+      <p class="tiny-note">Airchie sicocxle</p>
+    </section>
+  </main>
+
+  <!-- Fullscreen popup -->
+  <div class="verse-modal" id="verseModal" hidden>
+    <div class="verse-modal__backdrop" id="modalBackdrop"></div>
+
+    <div class="verse-modal__card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="verse-modal__top">
+        <span class="result-badge" id="resultBadge">Feeling</span>
+
+        <div class="verse-modal__buttons">
+          <button class="btn secondary" id="newVerseBtn" type="button">New verse</button>
+          <button class="btn" id="copyBtn" type="button">Copy</button>
+          <button class="btn secondary" id="closeModalBtn" type="button">Close</button>
+        </div>
+      </div>
+
+      <h3 class="result-title" id="modalTitle">Here’s what God says</h3>
+
+      <blockquote class="verse" id="verseText">Loading…</blockquote>
+
+      <div class="verse-meta">
+        <span class="verse-ref" id="verseRef">—</span>
+      </div>
+
+      <p class="tiny-note" id="fallbackNote" hidden>
+        Couldn’t load the verse text right now. Try “New verse”.
+      </p>
     </div>
-  </body>
+  </div>
+
+  <script src="./page.js" defer></script>
+</body>
 </html>
