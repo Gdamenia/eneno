@@ -448,3 +448,58 @@ textarea{
   color: var(--text);
   outline: none;
 }
+
+
+.verse-modal[hidden]{ display:none; }
+
+.verse-modal{
+  position:fixed;
+  inset:0;
+  z-index:9999;
+}
+
+.verse-modal__backdrop{
+  position:absolute;
+  inset:0;
+  background: rgba(0,0,0,0.60);
+  backdrop-filter: blur(10px);
+}
+
+.verse-modal__card{
+  position:relative;
+  width:min(620px, calc(100% - 32px));
+  margin: 10vh auto 0;
+  border-radius:16px;
+  padding:18px;
+  background: rgba(255,255,255,0.08);
+  border:1px solid rgba(255,255,255,0.14);
+  box-shadow: 0 18px 70px rgba(0,0,0,0.55);
+}
+
+.verse-modal__top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+}
+
+.verse-modal__buttons{
+  display:flex;
+  gap:8px;
+}
+
+.verse{
+  margin-top:14px;
+  font-size:18px;
+  line-height:1.7;
+  font-style: italic;
+}
+
+.verse-ref{
+  display:block;
+  margin-top:10px;
+  opacity:.75;
+  font-size:13px;
+}
+
