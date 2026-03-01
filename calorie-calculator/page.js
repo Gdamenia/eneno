@@ -137,13 +137,19 @@
   function activeRef() { return userRoot().doc("active"); }
   function savedMealsCol() { return userRoot().collection("savedMeals"); }
 
+  // ✅ FIX: make API work on localhost live server too (calls your Vercel API)
+  const API_BASE =
+    (location.hostname === "localhost" || location.hostname === "127.0.0.1")
+      ? "https://eneno.vercel.app"
+      : "";
+
   async function apiSearch(q) {
-    const r = await fetch(`/api/fdc-search?q=${encodeURIComponent(q)}`);
+    const r = await fetch(`${API_BASE}/api/fdc-search?q=${encodeURIComponent(q)}`);
     if (!r.ok) throw new Error("search failed");
     return r.json();
   }
   async function apiFood(fdcId) {
-    const r = await fetch(`/api/fdc-food?fdcId=${encodeURIComponent(String(fdcId))}`);
+    const r = await fetch(`${API_BASE}/api/fdc-food?fdcId=${encodeURIComponent(String(fdcId))}`);
     if (!r.ok) throw new Error("food failed");
     return r.json();
   }
@@ -164,7 +170,6 @@
     const over = used > target && target > 0;
     textEl.classList.toggle("overText", over);
     fillEl.classList.toggle("overFill", over);
-    // When over, bar still 100% but red
     fillEl.style.width = `${over ? 100 : pct(used, target)}%`;
     return over;
   }
@@ -172,7 +177,6 @@
   function renderBars() {
     const used = computeTotals();
 
-    // left can never go below 0
     const leftCals = Math.max(0, targets.cals - used.cals);
     const leftP = Math.max(0, targets.p - used.p);
     const leftC = Math.max(0, targets.c - used.c);
@@ -187,9 +191,6 @@
     applyOverState(pText, pFill, used.p, targets.p, leftP);
     applyOverState(cText, cFill, used.c, targets.c, leftC);
     applyOverState(fText, fFill, used.f, targets.f, leftF);
-
-    // If not over, widths were set inside applyOverState; but applyOverState sets width too.
-    // (kept this way so we don’t change any other behavior)
   }
 
   function renderTargetsInputs() {
@@ -354,6 +355,53 @@
     setMessage("Targets saved ✅");
   });
 
+  // ✅ FIX: cleaner food suggestions (dedupe + remove branded spam + fewer results)
+  const norm = (s = "") =>
+    s.toLowerCase()
+      .replace(/\([^)]*\)/g, "")
+      .replace(/[^a-z0-9\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const isJunkBrand = (s = "") => {
+    const d = s.toLowerCase();
+    return (
+      d.includes("restaurant") ||
+      d.includes("mcdonald") ||
+      d.includes("burger king") ||
+      d.includes("wendy") ||
+      d.includes("kfc") ||
+      d.includes("starbucks") ||
+      d.includes("trader joe") ||
+      d.includes("walmart") ||
+      d.includes("costco") ||
+      d.includes("kroger") ||
+      d.includes("®") ||
+      d.includes("™")
+    );
+  };
+
+  function scoreSuggestion(item, q) {
+    const desc = item.description || "";
+    const d = desc.toLowerCase();
+    const query = (q || "").toLowerCase();
+
+    let score = 0;
+    if (item.dataType === "Foundation") score += 40;
+    if (item.dataType === "SR Legacy") score += 30;
+    if (item.dataType === "Survey (FNDDS)") score += 25;
+    if (item.dataType === "Branded") score -= 80;
+
+    if (d === query) score += 40;
+    if (d.startsWith(query)) score += 25;
+    if (d.includes(query)) score += 10;
+
+    if (isJunkBrand(desc)) score -= 40;
+    score += Math.max(0, 20 - desc.length * 0.15);
+
+    return score;
+  }
+
   // Typeahead
   let timer = null;
   let lastQ = "";
@@ -427,7 +475,27 @@
       lastQ = q;
       try {
         const data = await apiSearch(q);
-        showSuggest((data.foods || []).slice(0, 12));
+
+        let foods = (data.foods || []);
+
+        // remove branded + obvious junk
+        foods = foods.filter(f => f.dataType !== "Branded" && !isJunkBrand(f.description || ""));
+
+        // dedupe by normalized description
+        const seen = new Set();
+        foods = foods.filter(f => {
+          const k = norm(f.description || "");
+          if (!k) return false;
+          if (seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
+
+        // rank best first
+        foods.sort((a, b) => scoreSuggestion(b, q) - scoreSuggestion(a, q));
+
+        // show fewer options (clean)
+        showSuggest(foods.slice(0, 10));
       } catch {
         showSuggest([]);
       }
@@ -535,20 +603,50 @@
     setMessage("Reset ✅");
   });
 
-  // Meal generator (unchanged)
+  // ✅ FIX: BIG meal variety + Try Again really different
   const TEMPLATES = {
     breakfast: [
-      { title: "Greek yogurt bowl", items: [
-        { q: "Greek yogurt plain nonfat", grams: 150 },
+      { title: "Greek yogurt + berries + granola", items: [
+        { q: "greek yogurt", grams: 150 },
         { q: "granola", grams: 30 },
         { q: "blueberries", grams: 80 }
       ]},
+      { title: "Greek yogurt + banana + honey", items: [
+        { q: "greek yogurt", grams: 150 },
+        { q: "banana raw", grams: 120 },
+        { q: "honey", grams: 8 }
+      ]},
+      { title: "Oatmeal bowl (simple)", items: [
+        { q: "oats", grams: 50 },
+        { q: "banana raw", grams: 90 },
+        { q: "strawberries", grams: 80 }
+      ]},
       { title: "Eggs + toast + cucumber", items: [
-        { q: "egg whole", grams: 100 },
-        { q: "bread whole wheat", grams: 60 },
-        { q: "cucumber", grams: 120 }
+        { q: "egg", grams: 100 },
+        { q: "whole wheat bread", grams: 60 },
+        { q: "cucumber", grams: 140 }
+      ]},
+      { title: "Eggs + potatoes (light)", items: [
+        { q: "egg", grams: 100 },
+        { q: "potato baked", grams: 200 },
+        { q: "tomato", grams: 120 }
+      ]},
+      { title: "Cottage cheese + fruit", items: [
+        { q: "cottage cheese", grams: 200 },
+        { q: "apple raw", grams: 160 }
+      ]},
+      { title: "Avocado toast + egg", items: [
+        { q: "whole wheat bread", grams: 60 },
+        { q: "avocado raw", grams: 70 },
+        { q: "egg", grams: 50 }
+      ]},
+      { title: "Rice cakes + yogurt + berries", items: [
+        { q: "rice cake", grams: 20 },
+        { q: "greek yogurt", grams: 150 },
+        { q: "strawberries", grams: 100 }
       ]},
     ],
+
     lunch: [
       { title: "Chicken + rice + salad", items: [
         { q: "chicken breast cooked", grams: 150 },
@@ -560,7 +658,38 @@
         { q: "potato baked", grams: 220 },
         { q: "broccoli cooked", grams: 120 }
       ]},
+      { title: "Tuna bowl (simple)", items: [
+        { q: "tuna canned in water", grams: 140 },
+        { q: "white rice cooked", grams: 160 },
+        { q: "cucumber", grams: 150 }
+      ]},
+      { title: "Chicken + pasta + veg", items: [
+        { q: "chicken breast cooked", grams: 140 },
+        { q: "pasta cooked", grams: 180 },
+        { q: "mixed vegetables cooked", grams: 180 }
+      ]},
+      { title: "Beef + rice + tomato", items: [
+        { q: "beef cooked", grams: 140 },
+        { q: "white rice cooked", grams: 160 },
+        { q: "tomato", grams: 140 }
+      ]},
+      { title: "Turkey sandwich + salad", items: [
+        { q: "whole wheat bread", grams: 90 },
+        { q: "turkey breast deli", grams: 90 },
+        { q: "tomato", grams: 100 }
+      ]},
+      { title: "Shrimp + rice + vegetables", items: [
+        { q: "shrimp cooked", grams: 160 },
+        { q: "white rice cooked", grams: 170 },
+        { q: "mixed vegetables cooked", grams: 180 }
+      ]},
+      { title: "Eggs + rice + cucumber", items: [
+        { q: "egg", grams: 150 },
+        { q: "white rice cooked", grams: 170 },
+        { q: "cucumber", grams: 150 }
+      ]},
     ],
+
     dinner: [
       { title: "Shrimp + noodles (light)", items: [
         { q: "shrimp cooked", grams: 160 },
@@ -572,23 +701,86 @@
         { q: "potato baked", grams: 200 },
         { q: "cucumber", grams: 150 }
       ]},
+      { title: "Salmon + rice + cucumber", items: [
+        { q: "salmon cooked", grams: 130 },
+        { q: "white rice cooked", grams: 170 },
+        { q: "cucumber", grams: 160 }
+      ]},
+      { title: "Ground beef + potatoes", items: [
+        { q: "ground beef cooked", grams: 140 },
+        { q: "potato baked", grams: 220 },
+        { q: "tomato", grams: 120 }
+      ]},
+      { title: "Chicken + quinoa + veg", items: [
+        { q: "chicken breast cooked", grams: 150 },
+        { q: "quinoa cooked", grams: 180 },
+        { q: "mixed vegetables cooked", grams: 180 }
+      ]},
+      { title: "Omelet + salad", items: [
+        { q: "egg", grams: 150 },
+        { q: "tomato", grams: 120 },
+        { q: "cucumber", grams: 160 }
+      ]},
+      { title: "Tuna + potatoes + broccoli", items: [
+        { q: "tuna canned in water", grams: 140 },
+        { q: "potato baked", grams: 220 },
+        { q: "broccoli cooked", grams: 130 }
+      ]},
+      { title: "Chicken + rice noodles + veg", items: [
+        { q: "chicken breast cooked", grams: 150 },
+        { q: "rice noodles cooked", grams: 190 },
+        { q: "mixed vegetables cooked", grams: 200 }
+      ]},
     ]
   };
 
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  // pool per type so Try again cycles different meals
+  const pools = { breakfast: [], lunch: [], dinner: [] };
+  let lastTplTitle = { breakfast: "", lunch: "", dinner: "" };
+
+  function nextTemplate(type) {
+    if (!pools[type].length) pools[type] = shuffle(TEMPLATES[type] || []);
+    let tpl = pools[type].shift();
+    // avoid repeating the same title back-to-back
+    if (tpl && tpl.title === lastTplTitle[type] && (TEMPLATES[type] || []).length > 1) {
+      if (!pools[type].length) pools[type] = shuffle(TEMPLATES[type] || []);
+      const alt = pools[type].shift();
+      if (alt) {
+        pools[type].unshift(tpl);
+        tpl = alt;
+      }
+    }
+    lastTplTitle[type] = tpl?.title || "";
+    return tpl;
+  }
+
   async function pickTopId(query) {
     const data = await apiSearch(query);
-    const foods = (data.foods || []);
+    let foods = (data.foods || []);
     if (!foods.length) return null;
+
+    // prefer best dataset
     const preferred =
       foods.find(f => f.dataType === "Foundation") ||
+      foods.find(f => f.dataType === "SR Legacy") ||
       foods.find(f => f.dataType === "Survey (FNDDS)") ||
       foods[0];
+
     return preferred.fdcId;
   }
 
   async function buildMeal(type) {
-    const list = TEMPLATES[type] || [];
-    const tpl = list[Math.floor(Math.random() * list.length)];
+    const tpl = nextTemplate(type);
+    if (!tpl) throw new Error("no templates");
 
     const lines = [];
     const totals = { cals: 0, p: 0, c: 0, f: 0 };
@@ -632,7 +824,7 @@
       const meal = await buildMeal(mealType.value);
       openMeal(meal);
     } catch {
-      alert("Meal generation failed. API works on Vercel / vercel dev.");
+      alert("Meal generation failed.");
     } finally {
       btnGenerateMeal.disabled = false;
       btnGenerateMeal.textContent = "Generate meal";
