@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>My Progress Calendar</title>
+
+  <!-- KEEP THIS (your structure) -->
+  <link rel="stylesheet" href="../ene.css" />
+</head>
+
+<body>
+  <main class="cal-page" id="calPage">
+    <header class="cal-header">
+      <div>
+        <h1 class="cal-title">Progress Calendar</h1>
+      
+      </div>
+
+      <div class="cal-balance" aria-label="Points balance">
+        <div class="cal-balance__label">Balance</div>
+        <div class="cal-balance__value"><span id="pointsValue">0</span> pts</div>
+
+        <div class="cal-cheats" aria-label="Cheat days this month">
+          <span class="cal-cheats__label">Cheat days</span>
+          <span class="cal-cheats__value"><span id="cheatValue">0</span>/2</span>
+        </div>
+      </div>
+    </header>
+
+    <section class="cal-grid-wrap">
+      <div class="cal-toolbar">
+        <button class="btn secondary" id="prevMonthBtn" type="button" aria-label="Previous month">‹</button>
+        <div class="cal-month" id="monthLabel">Month YYYY</div>
+        <button class="btn secondary" id="nextMonthBtn" type="button" aria-label="Next month">›</button>
+
+        <div class="cal-toolbar-right">
+          <button class="btn secondary" id="goTodayBtn" type="button">Today</button>
+          <button class="btn secondary" id="resetBtn" type="button" title="Resets only this page data">Reset</button>
+        </div>
+      </div>
+
+      <div class="cal-weekdays" aria-hidden="true">
+        <div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div>Sun</div>
+      </div>
+
+      <div class="cal-grid" id="calendarGrid" aria-label="Calendar days">
+        <!-- injected -->
+      </div>
+    </section>
+
+    <section class="cal-bottom">
+      <section class="rewards">
+        <div class="rewards-head">
+          <h2 class="section-title">Rewards</h2>
+          <p class="tiny-note">Tap a box to browse. If points aren’t enough, it won’t let you.</p>
+        </div>
+
+        <div class="rewards-grid" id="rewardsGrid"></div>
+      </section>
+
+      <aside class="sidebar">
+        <div class="panel">
+          <h3 class="panel-title">Recent orders</h3>
+          <div class="owned-list" id="ownedList">Nothing yet 🌿</div>
+        </div>
+
+        <!-- <div class="panel">
+          <h3 class="panel-title">Recent history</h3>
+          <div class="history-list" id="historyList">Nothing yet</div>
+        </div> -->
+
+        <div class="panel">
+          <h3 class="panel-title">Rules</h3>
+          <ul class="rules">
+            <li>Good day → +1 point.</li>
+            <li>Cheat day → uses 1 cheat (max 2 per month).</li>
+            <li>3rd cheat day in same month → points reset.</li>
+            <li>Cheat count resets each month, points don’t.</li>
+            
+          </ul>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <!-- DAY MODAL -->
+  <div class="day-modal" id="dayModal" hidden>
+    <div class="day-modal__backdrop" id="dayModalBackdrop"></div>
+
+    <div class="day-modal__card" role="dialog" aria-modal="true" aria-labelledby="dayModalTitle">
+      <div class="day-modal__top">
+        <h3 class="panel-title" id="dayModalTitle">Day</h3>
+        <button class="btn secondary" id="closeDayModalBtn" type="button">Close</button>
+      </div>
+
+      <p class="day-modal__hint" id="dayStatusText">Status</p>
+
+      <div class="day-choice">
+        <button class="btn day-good" id="markGoodBtn" type="button">Good day 💜 (+1)</button>
+        <button class="btn secondary day-cheat" id="markCheatBtn" type="button">Cheat day 🍩 (uses 1)</button>
+      </div>
+
+      <div class="day-modal__actions">
+        <button class="btn secondary" id="undoBtn" type="button">Undo day</button>
+      </div>
+
+      <div class="flower-burst" id="flowerBurst" aria-hidden="true"></div>
+    </div>
+  </div>
+
+  <!-- CONFIRM MODAL -->
+  <div class="confirm-modal" id="confirmModal" hidden>
+    <div class="confirm-modal__backdrop" id="confirmBackdrop"></div>
+    <div class="confirm-modal__card" role="dialog" aria-modal="true">
+      <h3 class="panel-title" id="confirmTitle">Redeem?</h3>
+      <p class="confirm-text" id="confirmText">Text</p>
+      <div class="confirm-actions">
+        <button class="btn secondary" id="confirmCancelBtn" type="button">Cancel</button>
+        <button class="btn" id="confirmOkBtn" type="button">Redeem</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="./page.js" defer></script>
+</body>
+</html>
